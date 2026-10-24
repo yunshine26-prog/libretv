@@ -1,44 +1,42 @@
-import { sha256 } from './js/sha256.js'; // 需新建或引入SHA-256实现
+import { sha256 } from './js/sha256.js';
+
+const INTERNAL_REQUEST_HEADER = 'x-libretv-middleware-internal';
 
 // Vercel Middleware to inject environment variables
 export default async function middleware(request) {
-  // Get the URL from the request
+  // Internal fetches must bypass the response transformation. Without this
+  // guard, fetch(request) re-enters this middleware until Vercel returns 508.
+  if (request.headers.get(INTERNAL_REQUEST_HEADER) === '1') {
+    return;
+  }
+
   const url = new URL(request.url);
-  
+
   // Only process HTML pages
   const isHtmlPage = url.pathname.endsWith('.html') || url.pathname.endsWith('/');
   if (!isHtmlPage) {
-    return; // Let the request pass through unchanged
+    return;
   }
 
-  // Fetch the original response
-  const response = await fetch(request);
-  
-  // Check if it's an HTML response
+  // Fetch the original response once, marking the subrequest so that the
+  // middleware pass triggered by this fetch does not recurse.
+  const headers = new Headers(request.headers);
+  headers.set(INTERNAL_REQUEST_HEADER, '1');
+  const response = await fetch(new Request(request, { headers }));
+
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) {
-    return response; // Return the original response if not HTML
+    return response;
   }
 
-  // Get the HTML content
   const originalHtml = await response.text();
-  
-  // Replace the placeholder with actual environment variable
-  // If PASSWORD is not set, replace with empty string
-  const password = process.env.PASSWORD || '';
-  let passwordHash = '';
-  if (password) {
-    passwordHash = await sha256(password);
-  }
 
+  const password = process.env.PASSWORD || '';
+  const passwordHash = password ? await sha256(password) : '';
   const adminpassword = process.env.ADMINPASSWORD || '';
-  let adminpasswordHash = '';
-  if (adminpassword) {
-    adminpasswordHash = await sha256(adminpassword); // 修复变量名
-  }
-  
-  // 合并两次替换为一次操作
-  let modifiedHtml = originalHtml
+  const adminpasswordHash = adminpassword ? await sha256(adminpassword) : '';
+
+  const modifiedHtml = originalHtml
     .replace(
       'window.__ENV__.PASSWORD = "{{PASSWORD}}";',
       `window.__ENV__.PASSWORD = "${passwordHash}"; // SHA-256 hash`
@@ -48,7 +46,6 @@ export default async function middleware(request) {
       `window.__ENV__.ADMINPASSWORD = "${adminpasswordHash}"; // SHA-256 hash`
     );
 
-  // 修复Response构造
   return new Response(modifiedHtml, {
     status: response.status,
     statusText: response.statusText,
