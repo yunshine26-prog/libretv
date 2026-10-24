@@ -46,10 +46,16 @@ export default async function middleware(request) {
       `window.__ENV__.ADMINPASSWORD = "${adminpasswordHash}"; // SHA-256 hash`
     );
 
+  // The body has been decoded and changed, so the original encoding and
+  // length headers are no longer valid.
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.delete('content-encoding');
+  responseHeaders.delete('content-length');
+
   return new Response(modifiedHtml, {
     status: response.status,
     statusText: response.statusText,
-    headers: response.headers
+    headers: responseHeaders
   });
 }
 
