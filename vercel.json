@@ -1,6 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "builds": [
+    {
+      "src": "middleware.js",
+      "use": "@vercel/node",
+      "config": {
+        "zeroConfig": true,
+        "middleware": true,
+        "middlewareRuntime": "nodejs"
+      }
+    },
     { "src": "api/proxy/[...path].mjs", "use": "@vercel/node" },
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "manifest.json", "use": "@vercel/static" },
