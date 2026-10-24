@@ -11,15 +11,11 @@ export default async function middleware(request) {
   }
 
   const url = new URL(request.url);
-
-  // Only process HTML pages
   const isHtmlPage = url.pathname.endsWith('.html') || url.pathname.endsWith('/');
   if (!isHtmlPage) {
     return;
   }
 
-  // Fetch the original response once, marking the subrequest so that the
-  // middleware pass triggered by this fetch does not recurse.
   const headers = new Headers(request.headers);
   headers.set(INTERNAL_REQUEST_HEADER, '1');
   const response = await fetch(new Request(request, { headers }));
@@ -30,7 +26,6 @@ export default async function middleware(request) {
   }
 
   const originalHtml = await response.text();
-
   const password = process.env.PASSWORD || '';
   const passwordHash = password ? await sha256(password) : '';
   const adminpassword = process.env.ADMINPASSWORD || '';
