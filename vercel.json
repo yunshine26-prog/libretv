@@ -10,7 +10,11 @@
         "middlewareRuntime": "nodejs"
       }
     },
-    { "src": "api/proxy/[...path].mjs", "use": "@vercel/node" },
+    {
+      "src": "api/proxy/[...path].mjs",
+      "use": "@vercel/node",
+      "config": { "zeroConfig": true }
+    },
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "manifest.json", "use": "@vercel/static" },
     { "src": "robots.txt", "use": "@vercel/static" },
